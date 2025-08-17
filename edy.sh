@@ -8,7 +8,7 @@ NC='\033[0m' # No Color
 # --- Banner ---
 echo "${CYAN}"
 echo "================================================="
-echo "   Installer Otomatis Edu Auto-Purchase v2.0   "
+echo "   Installer Otomatis Edy Auto-Purchase v6.9   "
 echo "=================================================${NC}"
 echo ""
 
