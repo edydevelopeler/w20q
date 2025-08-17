@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# #################################################
+# Installer Otomatis untuk Skrip Edu Auto-Purchase
+# Versi 2.2 - Perbaikan Tampilan & Logika Konfigurasi
+# #################################################
+
 # --- Definisi Warna (dari contoh Anda) ---
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
@@ -7,8 +12,9 @@ GREEN='\033[1;32m'
 NC='\033[0m' # No Color
 
 # --- Banner ---
+clear
 echo -e "${YELLOW}###########################################${NC}"
-echo -e "${YELLOW}#####${RED}    Installer Edy Auto BuyEdu    ${YELLOW}#####${NC}"
+echo -e "${YELLOW}#####${RED}    Installer Edu Auto BuyEdu    ${YELLOW}#####${NC}"
 echo -e "${YELLOW}#####${GREEN}      Modder EdyDevelopeler      ${YELLOW}#####${NC}"
 echo -e "${YELLOW}###########################################${NC}"
 echo ""
@@ -28,7 +34,6 @@ echo -e "${GREEN} -> Dependensi berhasil diinstal.${NC}"
 BASE_URL="https://raw.githubusercontent.com/edydevelopeler/w20q/main"
 
 echo -e "${YELLOW}[2/6] Mengunduh skrip utama 'edu'...${NC}"
-# Menghapus --show-progress dan hanya menggunakan -q (quiet)
 wget -q -O /usr/bin/edu "$BASE_URL/edu"
 echo -e "${GREEN} -> Selesai.${NC}"
 
@@ -64,13 +69,31 @@ chmod +x /usr/bin/edu-ping-monitor
 chmod +x /etc/init.d/edu-monitor
 echo -e "${GREEN} -> Hak akses diatur.${NC}"
 
-# --- 5. Konfigurasi Awal ---
-clear
+# --- 5. Konfigurasi Awal (DIPERBAIKI) ---
 echo ""
 echo -e "${YELLOW}-------------------------------------------------${NC}"
 echo -e "${YELLOW}Menjalankan Konfigurasi Awal. Silakan masukkan data Anda...${NC}"
-# Jalankan skrip edu untuk pertama kali dan sembunyikan outputnya yang tidak perlu
-/usr/bin/edu > /dev/null 2>&1
+
+# Meminta input langsung dan menyimpannya ke file konfigurasi
+# Ini menghindari menjalankan skrip edu yang akan memicu pengecekan API
+CONFIG_FILE="/etc/config/edu_config.conf"
+mkdir -p "$(dirname "$CONFIG_FILE")"
+
+printf "Masukkan BOT_TOKEN: "
+read BOT_TOKEN
+printf "Masukkan CHAT_ID: "
+read CHAT_ID
+printf "Masukkan Nomor HP untuk Cek Kuota (contoh: 081xxxx): "
+read MSISDN
+printf "Masukkan AMBANG BATAS KUOTA dalam GB (contoh: 1): "
+read QUOTA_THRESHOLD
+
+echo "BOT_TOKEN='${BOT_TOKEN}'" > "$CONFIG_FILE"
+echo "CHAT_ID='${CHAT_ID}'" >> "$CONFIG_FILE"
+echo "MSISDN='${MSISDN}'" >> "$CONFIG_FILE"
+echo "QUOTA_THRESHOLD='${QUOTA_THRESHOLD}'" >> "$CONFIG_FILE"
+
+echo -e "${GREEN} -> Konfigurasi berhasil disimpan.${NC}"
 
 # --- 6. Mengatur Otomatisasi ---
 echo -e "${YELLOW}-------------------------------------------------${NC}"
@@ -85,7 +108,9 @@ echo -e "${GREEN} -> Cron job untuk pengecekan 6 jam sekali berhasil ditambahkan
 /etc/init.d/edu-monitor start
 echo -e "${GREEN} -> Service pemantau ping berhasil diaktifkan dan dijalankan.${NC}"
 
-rm /root/edy.sh
+# Menghapus file installer setelah selesai
+rm -- "$0"
+
 echo ""
 echo -e "${YELLOW}=================================================${NC}"
 echo -e "${GREEN}🎉          INSTALASI SELESAI!           🎉${NC}"
