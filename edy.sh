@@ -75,6 +75,7 @@ echo -e "${YELLOW}Menjalankan Konfigurasi Awal. Silakan masukkan data Anda...${N
 /usr/bin/edu
 
 # --- 6. Mengatur Otomatisasi ---
+clear
 echo -e "${YELLOW}-------------------------------------------------${NC}"
 echo -e "${YELLOW}[6/6] Mengatur jadwal (cron) dan mengaktifkan service...${NC}"
 
