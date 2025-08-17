@@ -1,29 +1,29 @@
 #!/bin/sh
 
-# Alamat IP yang akan di-ping. Pilih yang stabil, contoh: Cloudflare DNS.
-TARGET_IP="1.1.1.1"
+# Alamat web yang akan dicek. Google adalah pilihan yang sangat andal.
+TARGET_URL="http://www.google.com"
 
-# Berapa kali ping harus gagal berturut-turut sebelum eksekusi
+# Berapa kali pengecekan harus gagal berturut-turut sebelum eksekusi
 FAIL_THRESHOLD=2
 
 # Inisialisasi counter kegagalan
 fail_count=0
 
-echo "Memulai skrip pemantau ping pada $(date)"
+echo "Memulai skrip pemantau koneksi pada $(date)"
 
 # Loop selamanya
 while true; do
-    # Lakukan 1 kali ping dengan timeout 5 detik
-    if ping -c 1 -W 5 "$TARGET_IP" > /dev/null; then
+    # Coba hubungi target URL dengan timeout 5 detik.
+    # --head: hanya ambil header, lebih cepat.
+    # --fail: anggap error jika status HTTP bukan 2xx.
+    if curl -s --head --fail --max-time 5 "$TARGET_URL" > /dev/null; then
         # Jika berhasil, reset counter
         fail_count=0
-        # Tampilkan pesan sukses di log
-        echo "[$(date +'%H:%M:%S')] Ping ke $TARGET_IP berhasil."
+        echo "[$(date +'%H:%M:%S')] Koneksi ke $TARGET_URL berhasil."
     else
         # Jika gagal, tambahkan counter
         fail_count=$((fail_count + 1))
-        # Tampilkan pesan gagal di log
-        echo "[$(date +'%H:%M:%S')] PING GAGAL! (Percobaan ke-$fail_count dari $FAIL_THRESHOLD)"
+        echo "[$(date +'%H:%M:%S')] KONEKSI GAGAL! (Percobaan ke-$fail_count dari $FAIL_THRESHOLD)"
     fi
 
     # Cek apakah sudah mencapai ambang batas kegagalan
@@ -33,15 +33,15 @@ while true; do
         # Jalankan skrip utama Anda dengan argumen --force
         /usr/bin/edu --force
         
-        echo "[$(date +'%H:%M:%S')] Eksekusi selesai. Menjeda pemantauan selama 1 menit..."
-        # Jeda selama 1 menit untuk memberi waktu koneksi pulih
-        sleep 60
+        # Jeda selama 3 menit untuk memberi waktu koneksi pulih sepenuhnya
+        echo "[$(date +'%H:%M:%S')] Eksekusi selesai. Menjeda pemantauan selama 3 menit untuk stabilisasi jaringan..."
+        sleep 180
         
         # Reset counter setelah eksekusi
         fail_count=0
         echo "[$(date +'%H:%M:%S')] Pemantauan dilanjutkan."
     fi
 
-    # Tunggu 1 menit sebelum melakukan ping lagi
+    # Tunggu 20 detik sebelum melakukan pengecekan lagi
     sleep 20
 done
