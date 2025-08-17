@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Alamat IP yang akan di-ping. Pilih yang stabil, contoh: Cloudflare DNS.
-TARGET_IP="104.17.3.81"
+TARGET_IP="1.1.1.1"
 
 # Berapa kali ping harus gagal berturut-turut sebelum eksekusi
 FAIL_THRESHOLD=2
