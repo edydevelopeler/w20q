@@ -1,10 +1,5 @@
 #!/bin/sh
 
-# #################################################
-# Installer Otomatis untuk Skrip Edu Auto-Purchase
-# Versi 2.1 - Perbaikan Warna & Kompatibilitas
-# #################################################
-
 # --- Definisi Warna (dari contoh Anda) ---
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
@@ -13,7 +8,7 @@ NC='\033[0m' # No Color
 
 # --- Banner ---
 echo -e "${YELLOW}###########################################${NC}"
-echo -e "${YELLOW}#####${RED}    Installer Edu Auto-Purchase    ${YELLOW}#####${NC}"
+echo -e "${YELLOW}#####${RED}    Installer Edy Auto BuyEdu    ${YELLOW}#####${NC}"
 echo -e "${YELLOW}#####${GREEN}      Modder EdyDevelopeler      ${YELLOW}#####${NC}"
 echo -e "${YELLOW}###########################################${NC}"
 echo ""
