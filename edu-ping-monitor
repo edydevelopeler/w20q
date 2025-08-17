@@ -1,0 +1,44 @@
+#!/bin/sh
+
+# Alamat IP yang akan di-ping. Pilih yang stabil, contoh: Cloudflare DNS.
+TARGET_IP="1.1.1.1"
+
+# Berapa kali ping harus gagal berturut-turut sebelum eksekusi
+FAIL_THRESHOLD=2
+
+# Inisialisasi counter kegagalan
+fail_count=0
+
+echo "Memulai skrip pemantau ping..."
+
+# Loop selamanya
+while true; do
+    # Lakukan 1 kali ping dengan timeout 5 detik
+    if ping -c 1 -W 5 "$TARGET_IP" > /dev/null; then
+        # Jika berhasil, reset counter
+        fail_count=0
+        # echo "Ping ke $TARGET_IP berhasil." # Uncomment untuk debugging
+    else
+        # Jika gagal, tambahkan counter
+        fail_count=$((fail_count + 1))
+        echo "Ping ke $TARGET_IP gagal (kegagalan ke-$fail_count)."
+    fi
+
+    # Cek apakah sudah mencapai ambang batas kegagalan
+    if [ "$fail_count" -ge "$FAIL_THRESHOLD" ]; then
+        echo "Ambang batas kegagalan tercapai! Menjalankan skrip edu dalam mode darurat..."
+        
+        # Jalankan skrip utama Anda dengan argumen --force
+        /usr/bin/edu --force
+        
+        echo "Eksekusi selesai. Menjeda pemantauan selama 10 menit..."
+        # Jeda selama 10 menit untuk memberi waktu koneksi pulih
+        sleep 600
+        
+        # Reset counter setelah eksekusi
+        fail_count=0
+    fi
+
+    # Tunggu 1 menit sebelum melakukan ping lagi
+    sleep 60
+done
