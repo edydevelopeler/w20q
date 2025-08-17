@@ -63,6 +63,7 @@ chmod +x /etc/init.d/edu-monitor
 echo "${GREEN} -> Hak akses diatur.${NC}"
 
 # --- 5. Konfigurasi Awal ---
+clear
 echo ""
 echo "${CYAN}-------------------------------------------------${NC}"
 echo "${YELLOW}Menjalankan Konfigurasi Awal. Silakan masukkan data Anda...${NC}"
