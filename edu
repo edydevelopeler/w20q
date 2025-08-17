@@ -1,18 +1,14 @@
 #!/bin/sh
-
-# #############################################################################
-# Skrip Otomatisasi Pembelian Paket & Notifikasi Telegram
-# VERSI 6.4 - Penanganan Batas Pemakaian (Rate Limit) API
-# #############################################################################
-
 # --- LOKASI FILE KONFIGURASI ---
-CONFIG_FILE="$(dirname "$0")/telegram_config.conf"
+CONFIG_FILE="/etc/config/edu_config.conf"
 
 # --- KONFIGURASI API CEK KUOTA ---
 API_URL_CEK_KUOTA="https://apigw.kmsp-store.com/sidompul/v4/cek_kuota"
 
 # --- FUNGSI UNTUK KONFIGURASI AWAL ---
 setup_credentials() {
+    # Buat direktori jika belum ada
+    mkdir -p "$(dirname "$CONFIG_FILE")"
     if [ ! -f "$CONFIG_FILE" ]; then
         echo "--- Pengaturan Awal Diperlukan ---"
         printf "Masukkan BOT_TOKEN: "
@@ -24,90 +20,42 @@ setup_credentials() {
         printf "Masukkan AMBANG BATAS KUOTA dalam GB (contoh: 1): "
         read QUOTA_THRESHOLD
 
-        if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ] || [ -z "$MSISDN" ] || [ -z "$QUOTA_THRESHOLD" ]; then
-            echo "ERROR: Semua input tidak boleh kosong. Keluar."
-            exit 1
-        fi
-
         echo "BOT_TOKEN='${BOT_TOKEN}'" > "$CONFIG_FILE"
         echo "CHAT_ID='${CHAT_ID}'" >> "$CONFIG_FILE"
         echo "MSISDN='${MSISDN}'" >> "$CONFIG_FILE"
         echo "QUOTA_THRESHOLD='${QUOTA_THRESHOLD}'" >> "$CONFIG_FILE"
-        echo "Konfigurasi berhasil disimpan di $CONFIG_FILE"
-        echo "-------------------------------------"
+        echo "Konfigurasi berhasil disimpan."
     fi
-
     . "$CONFIG_FILE"
-
-    if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ] || [ -z "$MSISDN" ] || [ -z "$QUOTA_THRESHOLD" ]; then
-        echo "ERROR: Gagal memuat kredensial dari $CONFIG_FILE. Hapus file tersebut dan jalankan lagi."
-        exit 1
-    fi
 }
 
 # --- FUNGSI UNTUK MENGIRIM NOTIFIKASI TELEGRAM ---
 send_telegram_notification() {
     MESSAGE="$1"
     if [ -z "$MESSAGE" ]; then return; fi
-
-    echo "-> Mengirim notifikasi ke Telegram..."
     URL="https://api.telegram.org/bot${BOT_TOKEN}/sendMessage"
-    HTTP_BODY=$(curl -s -X POST "$URL" -d chat_id="$CHAT_ID" --data-urlencode "text=$MESSAGE" -d parse_mode="Markdown" -w "\n%{http_code}")
-    HTTP_STATUS=$(echo "$HTTP_BODY" | tail -n1)
-    
-    if [ "$HTTP_STATUS" = "200" ]; then
-        echo "-> Notifikasi berhasil dikirim."
-    else
-        echo "ERROR: Gagal mengirim notifikasi (Status: $HTTP_STATUS)."
-    fi
+    curl -s -X POST "$URL" -d chat_id="$CHAT_ID" --data-urlencode "text=$MESSAGE" -d parse_mode="Markdown" > /dev/null
 }
 
-# --- FUNGSI PENGECEKAN KUOTA VIA API (DIPERBARUI) ---
+# --- FUNGSI PENGECEKAN KUOTA ---
 check_quota_via_api() {
     echo "[1/4] Mengecek sisa kuota via API..."
-    
     REQUEST_URL="${API_URL_CEK_KUOTA}?msisdn=${MSISDN}&isJSON=true"
-
-    API_RESPONSE=$(curl -s -X GET "${REQUEST_URL}" \
-        -H 'Authorization: Basic c2lkb21wdWxhcGk6YXBpZ3drbXNw' \
-        -H 'X-API-Key: 60ef29aa-a648-4668-90ae-20951ef90c55' \
-        -H 'X-App-Version: 4.0.0')
-
-    if [ -z "$API_RESPONSE" ]; then
-        echo "-> Tidak ada respons dari API. Mungkin ada masalah jaringan. Skrip dihentikan."
-        exit 1
-    fi
-
-    echo "-> Respons API diterima: $API_RESPONSE"
-
-    API_STATUS_SUCCESS=$(echo "$API_RESPONSE" | jq -r '.status // false')
-
-    if [ "$API_STATUS_SUCCESS" != "true" ]; then
-        ERROR_MESSAGE=$(echo "$API_RESPONSE" | jq -r '.message // "Respons API tidak valid"')
-        echo "-> API mengembalikan error: $ERROR_MESSAGE"
-        send_telegram_notification "❌ *Gagal Cek Kuota*
-
-API mengembalikan pesan error: \`$ERROR_MESSAGE\`"
-        exit 1
-    fi
-
+    API_RESPONSE=$(curl -s -X GET "${REQUEST_URL}" -H 'Authorization: Basic c2lkb21wdWxhcGk6YXBpZ3drbXNw' -H 'X-API-Key: 60ef29aa-a648-4668-90ae-20951ef90c55' -H 'X-App-Version: 4.0.0')
     RESULT_STRING=$(echo "$API_RESPONSE" | jq -r '.data.hasil // "null"')
     
-    # --- PERBAIKAN DI SINI ---
-    # Cek apakah ada pesan "batas maksimal pengecekan" di dalam respons
     if echo "$RESULT_STRING" | grep -q "batas maksimal pengecekan"; then
         echo "-> API Rate Limit terdeteksi. Skrip dihentikan sementara."
         send_telegram_notification "⏳ *Pengecekan Kuota Dijeda*
 
 API memberlakukan batas pengecekan. Skrip akan mencoba lagi pada jadwal berikutnya."
-        exit 0 # Keluar dengan sukses, karena ini bukan error skrip
+        exit 0
     fi
 
-    # Lanjutkan parsing hanya jika tidak ada error rate limit
     REMAINING_QUOTA_GB=$(echo "$RESULT_STRING" | sed -n -r 's/.*Sisa Kuota: ([0-9]+\.?[0-9]*)\s*GB.*/\1/pI')
     
     if [ -z "$REMAINING_QUOTA_GB" ]; then
-        echo "-> Tidak dapat mengekstrak angka kuota dari: '$RESULT_STRING'. Skrip dihentikan."
+        echo "-> Format kuota tidak dikenali. Skrip berhenti."
         send_telegram_notification "❓ *Info Kuota Tidak Dikenali*
 
 API berhasil merespons, tetapi format kuota tidak dapat dibaca: \`$RESULT_STRING\`"
@@ -115,7 +63,6 @@ API berhasil merespons, tetapi format kuota tidak dapat dibaca: \`$RESULT_STRING
     fi
 
     echo "-> Sisa kuota terdeteksi: $REMAINING_QUOTA_GB GB"
-
     if [ $(echo "$REMAINING_QUOTA_GB <= $QUOTA_THRESHOLD" | bc) -eq 1 ]; then
         echo "-> KUOTA RENDAH! Melanjutkan proses pembelian paket."
         send_telegram_notification "⚠️ *Peringatan Kuota Rendah*
@@ -128,13 +75,23 @@ Sisa kuota terdeteksi: *${REMAINING_QUOTA_GB} GB*. Memulai proses pembelian pake
     fi
 }
 
-
 # --- FUNGSI UTAMA ---
 main() {
     echo "=============================================="
     echo "Memulai skrip otomatisasi pada $(date)"
     
-    check_quota_via_api
+    # --- LOGIKA KUNCI DI SINI ---
+    # Cek apakah argumen --force diberikan
+    if [ "$1" = "--force" ]; then
+        echo "-> Mode darurat diaktifkan (dipanggil oleh ping monitor)."
+        echo "-> Melewati pengecekan kuota API dan langsung membeli paket."
+        send_telegram_notification "🚨 *Koneksi Terputus!*
+
+Ping gagal. Mencoba membeli paket baru secara darurat."
+    else
+        # Perilaku normal (dipanggil oleh cron)
+        check_quota_via_api
+    fi
     
     STOP_MSG=""
     BUY_MSG=""
@@ -144,7 +101,6 @@ main() {
     if [ $? -eq 0 ]; then
         STOP_MSG=$(printf "✅ Stop Paket BERHASIL!\\n\\nDate : \`%s\`" "$(date +"%d %B %Y, %I:%M:%S %p")")
     else
-        echo "ERROR: Gagal menjalankan perintah STOP paket. Keluar."
         exit 1
     fi
     
@@ -154,8 +110,6 @@ main() {
     adb shell am start -a android.intent.action.CALL -d "tel:*808*4*1*1*1%23" && sleep 15 && adb shell input keyevent 4
     if [ $? -eq 0 ]; then
         BUY_MSG=$(printf "✅ Beli Paket BERHASIL!\\n\\nDate : \`%s\`" "$(date +"%d %B %Y, %I:%M:%S %p")")
-    else
-        echo "ERROR: Gagal menjalankan perintah BELI paket."
     fi
 
     sleep 3
@@ -163,8 +117,8 @@ main() {
     echo "[4/4] Mengaktifkan/menonaktifkan mode pesawat..."
     adb shell cmd connectivity airplane-mode enable && sleep 3 && adb shell cmd connectivity airplane-mode disable
     
-    echo "Menunggu 10 detik agar koneksi internet stabil..."
-    sleep 10
+    echo "Menunggu 15 detik agar koneksi internet stabil..."
+    sleep 15
     
     FINAL_MESSAGE=""
     if [ -n "$STOP_MSG" ]; then FINAL_MESSAGE="$STOP_MSG"; fi
@@ -176,9 +130,7 @@ main() {
     fi
 
     send_telegram_notification "$FINAL_MESSAGE"
-
     echo "Skrip selesai dieksekusi."
-    echo "=============================================="
 }
 
 # --- Dependensi ---
@@ -186,4 +138,5 @@ main() {
 
 # --- EKSEKUSI SKRIP ---
 setup_credentials
-main
+# Panggil fungsi utama dengan semua argumen yang diberikan
+main "$@"
