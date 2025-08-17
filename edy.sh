@@ -83,6 +83,7 @@ echo "${GREEN} -> Cron job untuk pengecekan 6 jam sekali berhasil ditambahkan.${
 /etc/init.d/edu-monitor start
 echo "${GREEN} -> Service pemantau ping berhasil diaktifkan dan dijalankan.${NC}"
 
+rm /root/edy.sh
 echo ""
 echo "${CYAN}=================================================${NC}"
 echo "${GREEN}🎉          INSTALASI SELESAI!           🎉${NC}"
