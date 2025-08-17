@@ -40,18 +40,30 @@ echo -e "${GREEN} -> Selesai.${NC}"
 echo -e "${YELLOW}[4/6] Membuat service untuk pemantau ping...${NC}"
 cat <<'EOF' > /etc/init.d/edu-monitor
 #!/bin/sh /etc/rc.common
+
+# Nama service
 SERVICE_NAME="edu-ping-monitor"
+# Lokasi skrip yang akan dijalankan
 SERVICE_SCRIPT="/usr/bin/edu-ping-monitor"
+# Lokasi file log
+LOG_FILE="/var/log/edu-monitor.log"
+
+# Prioritas start dan stop
 START=99
 STOP=10
 
+# Fungsi start
 start() {
     echo "Starting $SERVICE_NAME"
-    nohup "$SERVICE_SCRIPT" > /dev/null 2>&1 &
+    # Jalankan skrip di background dan arahkan output ke file log
+    # '>>' berarti menambahkan ke log, bukan menimpa
+    nohup "$SERVICE_SCRIPT" >> "$LOG_FILE" 2>&1 &
 }
 
+# Fungsi stop
 stop() {
     echo "Stopping $SERVICE_NAME"
+    # Cari dan matikan proses skrip
     killall -q "$SERVICE_NAME"
 }
 EOF
