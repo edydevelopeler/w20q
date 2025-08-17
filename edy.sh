@@ -1,11 +1,6 @@
 #!/bin/sh
 
-# #################################################
-# Installer Otomatis untuk Skrip Edu Auto-Purchase
-# Versi 2.2 - Perbaikan Tampilan & Logika Konfigurasi
-# #################################################
-
-# --- Definisi Warna (dari contoh Anda) ---
+# --- Definisi Warna ---
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
 GREEN='\033[1;32m'
@@ -70,30 +65,14 @@ chmod +x /etc/init.d/edu-monitor
 echo -e "${GREEN} -> Hak akses diatur.${NC}"
 
 # --- 5. Konfigurasi Awal (DIPERBAIKI) ---
+clear
 echo ""
 echo -e "${YELLOW}-------------------------------------------------${NC}"
 echo -e "${YELLOW}Menjalankan Konfigurasi Awal. Silakan masukkan data Anda...${NC}"
 
-# Meminta input langsung dan menyimpannya ke file konfigurasi
-# Ini menghindari menjalankan skrip edu yang akan memicu pengecekan API
-CONFIG_FILE="/etc/config/edu_config.conf"
-mkdir -p "$(dirname "$CONFIG_FILE")"
-
-printf "Masukkan BOT_TOKEN: "
-read BOT_TOKEN
-printf "Masukkan CHAT_ID: "
-read CHAT_ID
-printf "Masukkan Nomor HP untuk Cek Kuota (contoh: 081xxxx): "
-read MSISDN
-printf "Masukkan AMBANG BATAS KUOTA dalam GB (contoh: 1): "
-read QUOTA_THRESHOLD
-
-echo "BOT_TOKEN='${BOT_TOKEN}'" > "$CONFIG_FILE"
-echo "CHAT_ID='${CHAT_ID}'" >> "$CONFIG_FILE"
-echo "MSISDN='${MSISDN}'" >> "$CONFIG_FILE"
-echo "QUOTA_THRESHOLD='${QUOTA_THRESHOLD}'" >> "$CONFIG_FILE"
-
-echo -e "${GREEN} -> Konfigurasi berhasil disimpan.${NC}"
+# Jalankan skrip edu secara langsung agar pertanyaan konfigurasi muncul
+# Respons API yang berantakan akan muncul sekali ini saja saat instalasi
+/usr/bin/edu
 
 # --- 6. Mengatur Otomatisasi ---
 echo -e "${YELLOW}-------------------------------------------------${NC}"
