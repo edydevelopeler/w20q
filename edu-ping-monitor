@@ -9,7 +9,7 @@ FAIL_THRESHOLD=2
 # Inisialisasi counter kegagalan
 fail_count=0
 
-echo "Memulai skrip pemantau ping..."
+echo "Memulai skrip pemantau ping pada $(date)"
 
 # Loop selamanya
 while true; do
@@ -17,26 +17,29 @@ while true; do
     if ping -c 1 -W 5 "$TARGET_IP" > /dev/null; then
         # Jika berhasil, reset counter
         fail_count=0
-        # echo "Ping ke $TARGET_IP berhasil." # Uncomment untuk debugging
+        # Tampilkan pesan sukses di log
+        echo "[$(date +'%H:%M:%S')] Ping ke $TARGET_IP berhasil."
     else
         # Jika gagal, tambahkan counter
         fail_count=$((fail_count + 1))
-        echo "Ping ke $TARGET_IP gagal (kegagalan ke-$fail_count)."
+        # Tampilkan pesan gagal di log
+        echo "[$(date +'%H:%M:%S')] PING GAGAL! (Percobaan ke-$fail_count dari $FAIL_THRESHOLD)"
     fi
 
     # Cek apakah sudah mencapai ambang batas kegagalan
     if [ "$fail_count" -ge "$FAIL_THRESHOLD" ]; then
-        echo "Ambang batas kegagalan tercapai! Menjalankan skrip edu dalam mode darurat..."
+        echo "[$(date +'%H:%M:%S')] AMBANG BATAS GAGAL TERCAPAI! Menjalankan skrip edu --force..."
         
         # Jalankan skrip utama Anda dengan argumen --force
         /usr/bin/edu --force
         
-        echo "Eksekusi selesai. Menjeda pemantauan selama 10 menit..."
+        echo "[$(date +'%H:%M:%S')] Eksekusi selesai. Menjeda pemantauan selama 10 menit..."
         # Jeda selama 10 menit untuk memberi waktu koneksi pulih
         sleep 600
         
         # Reset counter setelah eksekusi
         fail_count=0
+        echo "[$(date +'%H:%M:%S')] Pemantauan dilanjutkan."
     fi
 
     # Tunggu 1 menit sebelum melakukan ping lagi
