@@ -33,9 +33,9 @@ while true; do
         # Jalankan skrip utama Anda dengan argumen --force
         /usr/bin/edu --force
         
-        echo "[$(date +'%H:%M:%S')] Eksekusi selesai. Menjeda pemantauan selama 10 menit..."
-        # Jeda selama 10 menit untuk memberi waktu koneksi pulih
-        sleep 600
+        echo "[$(date +'%H:%M:%S')] Eksekusi selesai. Menjeda pemantauan selama 1 menit..."
+        # Jeda selama 1 menit untuk memberi waktu koneksi pulih
+        sleep 60
         
         # Reset counter setelah eksekusi
         fail_count=0
