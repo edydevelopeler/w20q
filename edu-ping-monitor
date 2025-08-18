@@ -2,7 +2,7 @@
 
 # #############################################################################
 # Skrip Pemantau Koneksi dengan Aksi Darurat Langsung
-# VERSI 3.2 - Perbaikan Urutan Notifikasi
+# VERSI 3.3 - Perbaikan Notifikasi Stuck dengan Subshell
 # #############################################################################
 
 # --- LOKASI FILE KONFIGURASI ---
@@ -64,31 +64,32 @@ while true; do
         sleep 3 && \
         adb shell cmd connectivity airplane-mode disable
 
-        # Jeda selama 3 menit untuk memberi waktu koneksi pulih sepenuhnya
-        echo "[$(date +'%H:%M:%S')] Eksekusi selesai. Menjeda pemantauan selama 3 menit untuk stabilisasi jaringan..."
-        sleep 180
+        echo "[$(date +'%H:%M:%S')] Eksekusi ADB selesai. Menjalankan notifikasi di latar belakang..."
         
-        # --- PERBAIKAN URUTAN NOTIFIKASI DI SINI ---
-        # Kirim notifikasi SETELAH koneksi kemungkinan pulih
-        
-        # 1. Notifikasi bahwa koneksi sempat terputus
-        send_telegram_notification "🚨 *Koneksi Terputus!*
+        # --- PERBAIKAN DI SINI ---
+        # Jalankan proses jeda dan notifikasi di subshell (di latar belakang)
+        # Ini mencegah skrip utama menjadi stuck
+        (
+            # Jeda selama 2 menit untuk memberi waktu koneksi pulih sepenuhnya
+            sleep 120
+            
+            # Kirim notifikasi SETELAH koneksi kemungkinan pulih
+            send_telegram_notification "🚨 *Koneksi Terputus!*
 
 Sistem mendeteksi koneksi gagal dan telah menjalankan pembelian darurat."
-        
-        # Beri jeda singkat antar notifikasi
-        sleep 2
+            
+            sleep 2
 
-        # 2. Notifikasi bahwa pembelian telah selesai
-        send_telegram_notification "✅ *Pembelian Darurat Selesai*
+            send_telegram_notification "✅ *Pembelian Darurat Selesai*
 
 Paket baru sudah aktif."
-        
-        # Reset counter setelah eksekusi
+        ) &
+
+        # Reset counter setelah eksekusi agar pemantauan bisa langsung lanjut
         fail_count=0
         echo "[$(date +'%H:%M:%S')] Pemantauan dilanjutkan."
     fi
 
-    # Tunggu 20 detik sebelum melakukan pengecekan lagi
-    sleep 20
+    # Tunggu 15 detik sebelum melakukan pengecekan lagi
+    sleep 15
 done
