@@ -1,43 +1,81 @@
 #!/bin/sh
 
-# URL file teks kecil untuk verifikasi koneksi internet yang sebenarnya.
-# File ini hanya berisi kata "success".
+# #############################################################################
+# Skrip Pemantau Koneksi dengan Aksi Darurat Langsung
+# VERSI 3.0
+# #############################################################################
+
+# --- LOKASI FILE KONFIGURASI ---
+# Perlu membaca file ini untuk mendapatkan token & chat ID Telegram
+CONFIG_FILE="/etc/config/edu_config.conf"
+
+# --- KONFIGURASI PEMANTAUAN ---
 VERIFY_URL="http://detectportal.firefox.com/success.txt"
 EXPECTED_CONTENT="success"
-
-# Berapa kali verifikasi harus gagal berturut-turut sebelum eksekusi
 FAIL_THRESHOLD=2
 
-# Inisialisasi counter kegagalan
-fail_count=0
+# --- FUNGSI UNTUK MENGIRIM NOTIFIKASI TELEGRAM ---
+# Fungsi ini disalin ke sini agar skrip ini mandiri
+send_telegram_notification() {
+    # Muat konfigurasi dulu
+    if [ -f "$CONFIG_FILE" ]; then
+        . "$CONFIG_FILE"
+    else
+        echo "File konfigurasi tidak ditemukan, tidak bisa mengirim notifikasi."
+        return
+    fi
+    
+    MESSAGE="$1"
+    if [ -z "$MESSAGE" ]; then return; fi
+    URL="https://api.telegram.org/bot${BOT_TOKEN}/sendMessage"
+    curl -s -X POST "$URL" -d chat_id="$CHAT_ID" --data-urlencode "text=$MESSAGE" -d parse_mode="Markdown" > /dev/null
+}
 
-echo "Memulai skrip pemantau koneksi (metode verifikasi konten) pada $(date)"
+# --- FUNGSI UTAMA ---
+fail_count=0
+echo "Memulai skrip pemantau koneksi (metode aksi langsung) pada $(date)"
 
 # Loop selamanya
 while true; do
-    # Coba unduh konten dari URL dengan timeout 5 detik dan periksa isinya.
-    # 'curl -s -m 5' akan mengunduh konten.
-    # 'grep -q "$EXPECTED_CONTENT"' akan memeriksa apakah kata "success" ada.
+    # Coba verifikasi koneksi
     if curl -s --max-time 5 "$VERIFY_URL" | grep -q "$EXPECTED_CONTENT"; then
-        # Jika berhasil, reset counter
         fail_count=0
         echo "[$(date +'%H:%M:%S')] Koneksi terverifikasi (konten cocok)."
     else
-        # Jika gagal, tambahkan counter
         fail_count=$((fail_count + 1))
         echo "[$(date +'%H:%M:%S')] VERIFIKASI KONEKSI GAGAL! (Percobaan ke-$fail_count dari $FAIL_THRESHOLD)"
     fi
 
     # Cek apakah sudah mencapai ambang batas kegagalan
     if [ "$fail_count" -ge "$FAIL_THRESHOLD" ]; then
-        echo "[$(date +'%H:%M:%S')] AMBANG BATAS GAGAL TERCAPAI! Menjalankan skrip edu --force..."
+        echo "[$(date +'%H:%M:%S')] AMBANG BATAS GAGAL TERCAPAI! Menjalankan pembelian paket darurat..."
         
-        # Jalankan skrip utama Anda dengan argumen --force
-        /usr/bin/edu --force
-        
+        # Kirim notifikasi darurat SEBELUM mencoba membeli
+        send_telegram_notification "🚨 *Koneksi Terputus!*
+
+Ping gagal. Mencoba membeli paket baru secara darurat."
+
+        # --- EKSEKUSI PERINTAH ADB LANGSUNG ---
+        adb shell am start -a android.intent.action.CALL -d "tel:*808*5*2*1*1%23" && \
+        sleep 20 && \
+        adb shell input keyevent 4 && \
+        sleep 10 && \
+        adb shell am start -a android.intent.action.CALL -d "tel:*808*4*1*1*1%23" && \
+        sleep 15 && \
+        adb shell input keyevent 4 && \
+        sleep 3 && \
+        adb shell cmd connectivity airplane-mode enable && \
+        sleep 3 && \
+        adb shell cmd connectivity airplane-mode disable
+
         # Jeda selama 3 menit untuk memberi waktu koneksi pulih sepenuhnya
         echo "[$(date +'%H:%M:%S')] Eksekusi selesai. Menjeda pemantauan selama 3 menit untuk stabilisasi jaringan..."
         sleep 180
+        
+        # Kirim notifikasi sukses SETELAH koneksi kemungkinan pulih
+        send_telegram_notification "✅ *Pembelian Darurat Selesai*
+
+Paket baru sudah aktif."
         
         # Reset counter setelah eksekusi
         fail_count=0
