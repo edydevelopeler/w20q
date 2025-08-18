@@ -76,11 +76,11 @@ while true; do
             # Kirim notifikasi SETELAH koneksi kemungkinan pulih
             send_telegram_notification "🚨 *Koneksi Terputus!*
 
-Sistem mendeteksi koneksi gagal dan telah menjalankan pembelian darurat."
+Sistem mendeteksi koneksi gagal dan telah menjalankan pembelian paket"
             
             sleep 2
 
-            send_telegram_notification "✅ *Pembelian Darurat Selesai*
+            send_telegram_notification "✅ *Pembelian Paket Selesai*
 
 Paket baru sudah aktif."
         ) &
