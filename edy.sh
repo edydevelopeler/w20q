@@ -1,10 +1,4 @@
 #!/bin/sh
-
-# #############################################################################
-#       Installer & Pemantau Koneksi Edu Auto-Purchase (Versi Final)
-#                Skrip tunggal untuk instalasi dan monitoring
-# #############################################################################
-
 # --- LOKASI FILE & NAMA SERVICE ---
 CONFIG_FILE="/etc/config/edu_config.conf"
 SERVICE_FILE="/etc/init.d/edu-monitor"
@@ -17,10 +11,6 @@ YELLOW='\033[1;33m'
 RED='\033[1;31m'
 GREEN='\033[1;32m'
 NC='\033[0m'
-
-# =============================================================================
-# FUNGSI-FUNGSI
-# =============================================================================
 
 # --- Fungsi untuk mengirim notifikasi ---
 send_telegram_notification() {
@@ -46,8 +36,8 @@ start_monitoring() {
     . "$CONFIG_FILE"
 
     fail_count=0
-    FAIL_THRESHOLD=3 # Gagal 3x baru eksekusi
-    CHECK_INTERVAL=60 # Cek setiap 1 menit
+    # FAIL_THRESHOLD sekarang dimuat dari file konfigurasi
+    CHECK_INTERVAL=60 # Pengecekan tetap setiap 1 menit
     STABILIZE_WAIT=180 # Jeda 3 menit setelah beli
 
     # Tentukan target pengecekan berdasarkan pilihan user
@@ -84,7 +74,7 @@ start_monitoring() {
 
         # Cek jika ambang batas kegagalan tercapai
         if [ "$fail_count" -ge "$FAIL_THRESHOLD" ]; then
-            echo "[$(date +'%H:%M:%S')] AMBANG BATAS GAGAL TERCAPAI! Menjalankan pembelian paket darurat..."
+            echo "[$(date +'%H:%M:%S')] Menjalankan pembelian paket Edy, Bersiaplahh..."
             
             # Eksekusi perintah ADB langsung
             adb shell am start -a android.intent.action.CALL -d "tel:*808*5*2*1*1%23" && \
@@ -106,11 +96,11 @@ start_monitoring() {
                 sleep "$STABILIZE_WAIT"
                 send_telegram_notification "🚨 *Koneksi Terputus!*
 
-Sistem mendeteksi koneksi gagal dan telah menjalankan pembelian darurat."
+Ping gagal dan telah menjalankan pembelian paket Edy mmpsshhhshhhh ahhhhhhhh."
                 sleep 2
-                send_telegram_notification "✅ *Pembelian Darurat Selesai*
+                send_telegram_notification "✅ *Pembelian Paket Edy Selesai*
 
-Paket baru seharusnya sudah aktif."
+Paket Edy Aktif su mmpsshhhshhhh ahhhhhhhh."
             ) &
 
             fail_count=0
@@ -122,12 +112,11 @@ Paket baru seharusnya sudah aktif."
     done
 }
 
-
 # --- Fungsi instalasi ---
 run_installation() {
     clear
     echo -e "${YELLOW}###########################################${NC}"
-    echo -e "${YELLOW}#####${RED}    Installer Edu Auto-Purchase    ${YELLOW}#####${NC}"
+    echo -e "${YELLOW}#####${RED}    Installer Edu Auto BuyEdu    ${YELLOW}#####${NC}"
     echo -e "${YELLOW}#####${GREEN}      Modder EdyDevelopeler      ${YELLOW}#####${NC}"
     echo -e "${YELLOW}###########################################${NC}"
     echo ""
@@ -148,19 +137,34 @@ run_installation() {
     read CHAT_ID
     
     echo "Pilih Jenis Pengecekan Koneksi:"
-    echo "  1) Verifikasi Konten (Paling Andal)"
-    echo "  2) Ping ke Bug (Untuk Jaringan Khusus)"
+    echo "  1) Ping Konten"
+    echo "  2) Ping ke Bug (104.17.3.81)"
     printf "Pilihan [1/2]: "
     read PING_TYPE
-    # Default ke 1 jika input tidak valid
     if [ "$PING_TYPE" != "2" ]; then
         PING_TYPE="1"
     fi
+
+    # --- PERUBAHAN DI SINI ---
+    echo "Pilih Jumlah Percobaan Gagal Ping (Default: 3x):"
+    echo "  1) 1 Kali"
+    echo "  2) 2 Kali"
+    echo "  3) 3 Kali"
+    printf "Pilihan [1/2/3]: "
+    read THRESHOLD_CHOICE
+    
+    case "$THRESHOLD_CHOICE" in
+        1) FAIL_THRESHOLD=1 ;;
+        2) FAIL_THRESHOLD=2 ;;
+        *) FAIL_THRESHOLD=3 ;;
+    esac
+    # --- AKHIR PERUBAHAN ---
 
     # Simpan konfigurasi
     echo "BOT_TOKEN='${BOT_TOKEN}'" > "$CONFIG_FILE"
     echo "CHAT_ID='${CHAT_ID}'" >> "$CONFIG_FILE"
     echo "PING_TYPE='${PING_TYPE}'" >> "$CONFIG_FILE"
+    echo "FAIL_THRESHOLD='${FAIL_THRESHOLD}'" >> "$CONFIG_FILE"
     echo -e "${GREEN} -> Konfigurasi berhasil disimpan.${NC}"
 
     # 3. Pemasangan Skrip & Service
@@ -185,7 +189,7 @@ start() {
 
 stop() {
     echo "Stopping \$SERVICE_NAME"
-    kill \$(cat /var/run/\$SERVICE_NAME.pid)
+    # Menggunakan killall untuk menghentikan proses berdasarkan nama skrip
     killall -q \$(basename "\$SERVICE_SCRIPT")
 }
 EOF
