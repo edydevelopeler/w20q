@@ -1,5 +1,4 @@
 #!/bin/sh
-
 # --- Definisi Warna ---
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
@@ -15,7 +14,7 @@ SCRIPT_FILE="/usr/bin/edu-monitor"
 # --- Banner ---
 clear
 echo -e "${YELLOW}###########################################${NC}"
-echo -e "${YELLOW}#####${RED}      Uninstaller Auto BuyEdy    ${YELLOW}#####${NC}"
+echo -e "${YELLOW}#####${RED}      Uninstaller Edy      ${YELLOW}#####${NC}"
 echo -e "${YELLOW}###########################################${NC}"
 echo ""
 
