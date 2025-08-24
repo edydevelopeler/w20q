@@ -15,7 +15,7 @@ SCRIPT_FILE="/usr/bin/edu-monitor"
 # --- Banner ---
 clear
 echo -e "${YELLOW}###########################################${NC}"
-echo -e "${YELLOW}#####${RED}      Uninstaller Edu Auto BuyEdu      ${YELLOW}#####${NC}"
+echo -e "${YELLOW}#####${RED}      Uninstaller Auto BuyEdy    ${YELLOW}#####${NC}"
 echo -e "${YELLOW}###########################################${NC}"
 echo ""
 
