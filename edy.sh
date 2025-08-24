@@ -1,110 +1,226 @@
 #!/bin/sh
 
+# #############################################################################
+#       Installer & Pemantau Koneksi Edu Auto-Purchase (Versi Final)
+#                Skrip tunggal untuk instalasi dan monitoring
+# #############################################################################
+
+# --- LOKASI FILE & NAMA SERVICE ---
+CONFIG_FILE="/etc/config/edu_config.conf"
+SERVICE_FILE="/etc/init.d/edu-monitor"
+LOG_FILE="/var/log/edu-monitor.log"
+# Lokasi skrip ini akan dipasang
+INSTALL_PATH="/usr/bin/edu-monitor"
+
 # --- Definisi Warna ---
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
 GREEN='\033[1;32m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# --- Banner ---
-clear
-echo -e "${YELLOW}###########################################${NC}"
-echo -e "${YELLOW}#####${RED}    Installer Edu Auto BuyEdu    ${YELLOW}#####${NC}"
-echo -e "${YELLOW}#####${GREEN}      Modder EdyDevelopeler      ${YELLOW}#####${NC}"
-echo -e "${YELLOW}###########################################${NC}"
-echo ""
+# =============================================================================
+# FUNGSI-FUNGSI
+# =============================================================================
 
-# --- 1. Instalasi Dependensi ---
-echo -e "${YELLOW}[1/6] Memperbarui daftar paket dan menginstal dependensi...${NC}"
-opkg update > /dev/null 2>&1
-opkg install curl coreutils-date adb jq bc > /dev/null 2>&1
+# --- Fungsi untuk mengirim notifikasi ---
+send_telegram_notification() {
+    # Muat konfigurasi di dalam fungsi agar selalu update
+    if [ -f "$CONFIG_FILE" ]; then
+        . "$CONFIG_FILE"
+    else
+        echo "File konfigurasi tidak ditemukan."
+        return
+    fi
+    
+    MESSAGE="$1"
+    if [ -z "$MESSAGE" ]; then return; fi
+    URL="https://api.telegram.org/bot${BOT_TOKEN}/sendMessage"
+    curl -s --max-time 15 -X POST "$URL" -d chat_id="$CHAT_ID" --data-urlencode "text=$MESSAGE" -d parse_mode="Markdown" > /dev/null
+}
 
-if [ $? -ne 0 ]; then
-    echo -e "${RED}ERROR: Gagal menginstal dependensi. Pastikan koneksi internet Anda stabil.${NC}"
-    exit 1
-fi
-echo -e "${GREEN} -> Dependensi berhasil diinstal.${NC}"
+# --- Fungsi utama pemantauan koneksi ---
+start_monitoring() {
+    echo "Memulai skrip pemantau koneksi pada $(date)"
+    
+    # Muat konfigurasi sekali di awal
+    . "$CONFIG_FILE"
 
-# --- 2. Download Skrip dari GitHub ---
-BASE_URL="https://raw.githubusercontent.com/edydevelopeler/w20q/main"
+    fail_count=0
+    FAIL_THRESHOLD=3 # Gagal 3x baru eksekusi
+    CHECK_INTERVAL=60 # Cek setiap 1 menit
+    STABILIZE_WAIT=180 # Jeda 3 menit setelah beli
 
-echo -e "${YELLOW}[2/6] Mengunduh skrip utama 'edu'...${NC}"
-wget -q -O /usr/bin/edu "$BASE_URL/edu"
-echo -e "${GREEN} -> Selesai.${NC}"
+    # Tentukan target pengecekan berdasarkan pilihan user
+    if [ "$PING_TYPE" = "1" ]; then
+        CHECK_TARGET="http://detectportal.firefox.com/success.txt"
+        EXPECTED_CONTENT="success"
+        CHECK_METHOD="content"
+    else
+        CHECK_TARGET="104.17.3.81"
+        CHECK_METHOD="ping"
+    fi
 
-echo -e "${YELLOW}[3/6] Mengunduh skrip 'edu-ping-monitor'...${NC}"
-wget -q -O /usr/bin/edu-ping-monitor "$BASE_URL/edu-ping-monitor"
-echo -e "${GREEN} -> Selesai.${NC}"
+    # Loop selamanya
+    while true; do
+        connection_ok=false
+        # Lakukan pengecekan berdasarkan metode yang dipilih
+        if [ "$CHECK_METHOD" = "content" ]; then
+            if curl -s --max-time 5 "$CHECK_TARGET" | grep -q "$EXPECTED_CONTENT"; then
+                connection_ok=true
+            fi
+        else # PING_METHOD
+            if ping -c 1 -W 5 "$CHECK_TARGET" > /dev/null; then
+                connection_ok=true
+            fi
+        fi
 
-# --- 3. Membuat File Service ---
-echo -e "${YELLOW}[4/6] Membuat service untuk pemantau ping...${NC}"
-cat <<'EOF' > /etc/init.d/edu-monitor
+        if $connection_ok; then
+            fail_count=0
+            echo "[$(date +'%H:%M:%S')] Koneksi terverifikasi (Metode: $CHECK_METHOD)."
+        else
+            fail_count=$((fail_count + 1))
+            echo "[$(date +'%H:%M:%S')] KONEKSI GAGAL! (Percobaan ke-$fail_count dari $FAIL_THRESHOLD)"
+        fi
+
+        # Cek jika ambang batas kegagalan tercapai
+        if [ "$fail_count" -ge "$FAIL_THRESHOLD" ]; then
+            echo "[$(date +'%H:%M:%S')] AMBANG BATAS GAGAL TERCAPAI! Menjalankan pembelian paket darurat..."
+            
+            # Eksekusi perintah ADB langsung
+            adb shell am start -a android.intent.action.CALL -d "tel:*808*5*2*1*1%23" && \
+            sleep 20 && \
+            adb shell input keyevent 4 && \
+            sleep 10 && \
+            adb shell am start -a android.intent.action.CALL -d "tel:*808*4*1*1*1%23" && \
+            sleep 15 && \
+            adb shell input keyevent 4 && \
+            sleep 3 && \
+            adb shell cmd connectivity airplane-mode enable && \
+            sleep 3 && \
+            adb shell cmd connectivity airplane-mode disable
+
+            echo "[$(date +'%H:%M:%S')] Eksekusi ADB selesai. Notifikasi akan dikirim setelah jeda stabilisasi."
+
+            # Jalankan jeda dan notifikasi di latar belakang
+            (
+                sleep "$STABILIZE_WAIT"
+                send_telegram_notification "🚨 *Koneksi Terputus!*
+
+Sistem mendeteksi koneksi gagal dan telah menjalankan pembelian darurat."
+                sleep 2
+                send_telegram_notification "✅ *Pembelian Darurat Selesai*
+
+Paket baru seharusnya sudah aktif."
+            ) &
+
+            fail_count=0
+            echo "[$(date +'%H:%M:%S')] Pemantauan dilanjutkan setelah jeda notifikasi."
+        fi
+
+        # Tunggu sebelum pengecekan berikutnya
+        sleep "$CHECK_INTERVAL"
+    done
+}
+
+
+# --- Fungsi instalasi ---
+run_installation() {
+    clear
+    echo -e "${YELLOW}###########################################${NC}"
+    echo -e "${YELLOW}#####${RED}    Installer Edu Auto-Purchase    ${YELLOW}#####${NC}"
+    echo -e "${YELLOW}#####${GREEN}      Modder EdyDevelopeler      ${YELLOW}#####${NC}"
+    echo -e "${YELLOW}###########################################${NC}"
+    echo ""
+
+    # 1. Instalasi Dependensi
+    echo -e "${YELLOW}[1/4] Menginstal dependensi...${NC}"
+    opkg update > /dev/null 2>&1
+    opkg install curl coreutils-date adb > /dev/null 2>&1
+    echo -e "${GREEN} -> Dependensi berhasil diinstal.${NC}"
+
+    # 2. Konfigurasi Awal
+    echo ""
+    echo -e "${YELLOW}[2/4] Konfigurasi Awal. Silakan masukkan data Anda...${NC}"
+    
+    printf "Masukkan BOT_TOKEN: "
+    read BOT_TOKEN
+    printf "Masukkan CHAT_ID: "
+    read CHAT_ID
+    
+    echo "Pilih Jenis Pengecekan Koneksi:"
+    echo "  1) Verifikasi Konten (Paling Andal)"
+    echo "  2) Ping ke Bug (Untuk Jaringan Khusus)"
+    printf "Pilihan [1/2]: "
+    read PING_TYPE
+    # Default ke 1 jika input tidak valid
+    if [ "$PING_TYPE" != "2" ]; then
+        PING_TYPE="1"
+    fi
+
+    # Simpan konfigurasi
+    echo "BOT_TOKEN='${BOT_TOKEN}'" > "$CONFIG_FILE"
+    echo "CHAT_ID='${CHAT_ID}'" >> "$CONFIG_FILE"
+    echo "PING_TYPE='${PING_TYPE}'" >> "$CONFIG_FILE"
+    echo -e "${GREEN} -> Konfigurasi berhasil disimpan.${NC}"
+
+    # 3. Pemasangan Skrip & Service
+    echo -e "${YELLOW}[3/4] Memasang skrip dan membuat service...${NC}"
+    # Salin diri sendiri ke lokasi instalasi
+    cp "$0" "$INSTALL_PATH"
+    chmod +x "$INSTALL_PATH"
+
+    # Buat file service
+    cat <<EOF > "$SERVICE_FILE"
 #!/bin/sh /etc/rc.common
-
-# Nama service
-SERVICE_NAME="edu-ping-monitor"
-# Lokasi skrip yang akan dijalankan
-SERVICE_SCRIPT="/usr/bin/edu-ping-monitor"
-# Lokasi file log
-LOG_FILE="/var/log/edu-monitor.log"
-
-# Prioritas start dan stop
+SERVICE_NAME="edu-monitor"
+SERVICE_SCRIPT="$INSTALL_PATH"
+LOG_FILE="$LOG_FILE"
 START=99
 STOP=10
 
-# Fungsi start
 start() {
-    echo "Starting $SERVICE_NAME"
-    # Jalankan skrip di background dan arahkan output ke file log
-    # '>>' berarti menambahkan ke log, bukan menimpa
-    nohup "$SERVICE_SCRIPT" >> "$LOG_FILE" 2>&1 &
+    echo "Starting \$SERVICE_NAME"
+    nohup "\$SERVICE_SCRIPT" --start-monitor >> "\$LOG_FILE" 2>&1 &
 }
 
-# Fungsi stop
 stop() {
-    echo "Stopping $SERVICE_NAME"
-    # Cari dan matikan proses skrip
-    killall -q "$SERVICE_NAME"
+    echo "Stopping \$SERVICE_NAME"
+    kill \$(cat /var/run/\$SERVICE_NAME.pid)
+    killall -q \$(basename "\$SERVICE_SCRIPT")
 }
 EOF
-echo -e "${GREEN} -> Service berhasil dibuat.${NC}"
+    chmod +x "$SERVICE_FILE"
+    echo -e "${GREEN} -> Service berhasil dibuat.${NC}"
 
-# --- 4. Mengatur Hak Akses ---
-echo -e "${YELLOW}[5/6] Mengatur hak akses (permissions)...${NC}"
-chmod +x /usr/bin/edu
-chmod +x /usr/bin/edu-ping-monitor
-chmod +x /etc/init.d/edu-monitor
-echo -e "${GREEN} -> Hak akses diatur.${NC}"
+    # 4. Aktivasi
+    echo -e "${YELLOW}[4/4] Mengaktifkan dan memulai service...${NC}"
+    "$SERVICE_FILE" enable > /dev/null 2>&1
+    "$SERVICE_FILE" start
+    echo -e "${GREEN} -> Service berhasil diaktifkan dan dijalankan.${NC}"
 
-# --- 5. Konfigurasi Awal (DIPERBAIKI) ---
-clear
-echo ""
-echo -e "${YELLOW}-------------------------------------------------${NC}"
-echo -e "${YELLOW}Menjalankan Konfigurasi Awal. Silakan masukkan data Anda...${NC}"
+    # Hapus file installer
+    rm -- "$0"
 
-# Jalankan skrip edu secara langsung agar pertanyaan konfigurasi muncul
-# Respons API yang berantakan akan muncul sekali ini saja saat instalasi
-/usr/bin/edu
+    echo ""
+    echo -e "${YELLOW}=================================================${NC}"
+    echo -e "${GREEN}🎉          INSTALASI SELESAI!           🎉${NC}"
+    echo -e "${YELLOW}Sistem sekarang berjalan otomatis.${NC}"
+    echo -e "${YELLOW}Log pemantauan bisa dilihat di: $LOG_FILE${NC}"
+    echo -e "${YELLOW}=================================================${NC}"
+}
 
-# --- 6. Mengatur Otomatisasi ---
-clear
-echo -e "${YELLOW}-------------------------------------------------${NC}"
-echo -e "${YELLOW}[6/6] Mengatur jadwal (cron) dan mengaktifkan service...${NC}"
+# =============================================================================
+# LOGIKA UTAMA
+# =============================================================================
 
-# Menambahkan cron job setiap 6 jam tanpa menghapus yang sudah ada
-(crontab -l 2>/dev/null | grep -v "/usr/bin/edu"; echo "0 */6 * * * /usr/bin/edu") | crontab -
-echo -e "${GREEN} -> Cron job untuk pengecekan 6 jam sekali berhasil ditambahkan.${NC}"
-
-# Mengaktifkan dan memulai service pemantau ping
-/etc/init.d/edu-monitor enable > /dev/null 2>&1
-/etc/init.d/edu-monitor start
-echo -e "${GREEN} -> Service pemantau ping berhasil diaktifkan dan dijalankan.${NC}"
-
-# Menghapus file installer setelah selesai
-rm -- "$0"
-
-echo ""
-echo -e "${YELLOW}=================================================${NC}"
-echo -e "${GREEN}🎉          INSTALASI SELESAI!           🎉${NC}"
-echo -e "${YELLOW}Sistem sekarang berjalan otomatis.${NC}"
-echo -e "${YELLOW}=================================================${NC}"
+# Cek argumen yang diberikan saat skrip dijalankan
+case "$1" in
+    --start-monitor)
+        # Jika argumennya --start-monitor, jalankan fungsi pemantauan
+        start_monitoring
+        ;;
+    *)
+        # Jika tidak ada argumen (atau argumen lain), jalankan fungsi instalasi
+        run_installation
+        ;;
+esac
