@@ -1,9 +1,5 @@
 #!/bin/sh
 
-# #################################################
-#       Uninstaller Edu Auto-Purchase
-# #################################################
-
 # --- Definisi Warna ---
 YELLOW='\033[1;33m'
 RED='\033[1;31m'
@@ -19,7 +15,7 @@ SCRIPT_FILE="/usr/bin/edu-monitor"
 # --- Banner ---
 clear
 echo -e "${YELLOW}###########################################${NC}"
-echo -e "${YELLOW}#####${RED}      Uninstaller Edu Auto-Purchase      ${YELLOW}#####${NC}"
+echo -e "${YELLOW}#####${RED}      Uninstaller Edu Auto BuyEdu      ${YELLOW}#####${NC}"
 echo -e "${YELLOW}###########################################${NC}"
 echo ""
 
