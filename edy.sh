@@ -205,11 +205,12 @@ EOF
     # Hapus file installer
     rm -- "$0"
 
+    clear
     echo ""
     echo -e "${YELLOW}=================================================${NC}"
     echo -e "${GREEN}🎉          INSTALASI SELESAI!           🎉${NC}"
     echo -e "${YELLOW}Sistem sekarang berjalan otomatis.${NC}"
-    echo -e "${YELLOW}Log pemantauan bisa dilihat di: $LOG_FILE${NC}"
+    echo -e "${YELLOW}Log pemantauan bisa dilihat dengan : tail -f /var/log/edu-monitor.log"
     echo -e "${YELLOW}=================================================${NC}"
 }
 
